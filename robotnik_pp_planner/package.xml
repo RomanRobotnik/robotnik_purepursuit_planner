@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<package>
+  <name>robotnik_pp_planner</name>
+  <version>0.1.0</version>
+  <description>Planner to follow a list of waypoints implementing the Pure Pursuit algorithm.</description>
+
+ 
+  <maintainer email="rnavarro@robotnik.es">Román Navarro</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://wiki.ros.org/purepursuit_planner</url>
+  <url type="repository">https://github.com/RobotnikAutomation/agvs</url>
+  <url type="bugtracker">https://github.com/RobotnikAutomation/agvs/issues</url>
+
+  <author email="rnavarro@robotnik.es">Román Navarro</author>
+
+  
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>diagnostic_updater</build_depend>
+  <build_depend>robotnik_pp_msgs</build_depend> 
+  <build_depend>ackermann_msgs</build_depend>
+  <build_depend>interactive_markers</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>actionlib</build_depend>
+
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>nav_msgs</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>diagnostic_updater</run_depend>
+  <run_depend>robotnik_pp_msgs</run_depend>
+  <run_depend>ackermann_msgs</run_depend>
+  <run_depend>interactive_markers</run_depend>
+  <run_depend>visualization_msgs</run_depend>
+  <run_depend>std_srvs</run_depend>
+  <run_depend>actionlib</run_depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    
+  </export>
+</package>
