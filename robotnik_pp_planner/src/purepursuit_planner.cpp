@@ -29,30 +29,39 @@
 #include <robotnik_pp_msgs/GoToAction.h>
 #include <robotnik_pp_msgs/goal.h>
 #include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Twist.h>
+
 //#include <s3000_laser/enable_disable.h>
 
 
-#define ODOM_TIMEOUT_ERROR			0.2				// max num. of seconds without receiving odom values
-#define MAP_TIMEOUT_ERROR			0.2				// max num. of seconds without receiving map transformations
-#define AGVS_TURN_RADIUS			0.20			// distancia en la que empieza a girar el robot cuando llega a una esquina
-#define MIN_ANGLE_BEZIER			0.261799388		// ángulo (radianes) mínimo entre segmentos de la recta para los que ajustaremos a una curva de BEZIER
-#define BEZIER_CONTROL_POINTS		5
+#define ODOM_TIMEOUT_ERROR					0.2				// max num. of seconds without receiving odom values
+#define MAP_TIMEOUT_ERROR					0.2				// max num. of seconds without receiving map transformations
+#define AGVS_TURN_RADIUS					0.20			// distancia en la que empieza a girar el robot cuando llega a una esquina
+#define MIN_ANGLE_BEZIER					0.261799388		// ángulo (radianes) mínimo entre segmentos de la recta para los que ajustaremos a una curva de BEZIER
+#define BEZIER_CONTROL_POINTS				5
 
-#define D_LOOKAHEAD_MIN				0.3		// Minima distancia del punto objetivo en m (PurePursuit con lookahead dinámico)
-#define D_LOOKAHEAD_MAX				1.1		// Maxima distancia del punto objetivo
-#define D_WHEEL_ROBOT_CENTER    	0.478   // Distance from the motor wheel to the robot center
+#define D_LOOKAHEAD_MIN						0.3		// Minima distancia del punto objetivo en m (PurePursuit con lookahead dinámico)
+#define D_LOOKAHEAD_MAX						1.1		// Maxima distancia del punto objetivo
+#define D_WHEEL_ROBOT_CENTER    			0.478   // Distance from the motor wheel to the robot center
 
-#define MAX_SPEED_LVL1				0.5
-#define MAX_SPEED_LVL2				0.3
-#define MAX_SPEED					1.2
+#define MAX_SPEED_LVL1						0.5
+#define MAX_SPEED_LVL2						0.3
+#define MAX_SPEED							1.2
 
-#define WAYPOINT_POP_DISTANCE_M		0.10		//Distancia mínima para alcanzar punto objetivo m (PurePursuit)
+#define WAYPOINT_POP_DISTANCE_M				0.10		//Distancia mínima para alcanzar punto objetivo m (PurePursuit)
 
 #define AGVS_FIRST_DECELERATION_DISTANCE 	0.5 	// meters -> when the vehicle is arriving to the goal, it has to decelarate at this distance
 #define AGVS_FIRST_DECELERATION_MAXSPEED	0.15	// m/s
 #define AGVS_SECOND_DECELERATION_DISTANCE   0.25 	// meters -> when the vehicle is arriving to the goal, it has to decelarate another time at this distance
 #define AGVS_SECOND_DECELERATION_MAXSPEED	0.1 	// m/s
-#define AGVS_DEFAULT_KR	0.20				// 
+#define AGVS_DEFAULT_KR	0.20						// 
+
+
+#define COMMAND_ACKERMANN					100 
+#define COMMAND_TWIST						200 
+#define COMMAND_ACKERMANN_STRING			"Ackermann" 
+#define COMMAND_TWIST_STRING				"Twist" 
+
 
 enum{
 	ODOM_SOURCE = 1,
@@ -710,6 +719,10 @@ private:
     std::string position_source_;
     //! Mode in numeric format
     unsigned int ui_position_source;
+    //!	Sets the type of command to send to the robot (Twist or ackermann)
+    int command_type;
+    //! Direction of movement (-1 or +1)
+    int direction;
     
 	//////// ROS
 	//! Publishes the status of the robot
@@ -771,6 +784,7 @@ public:
 		
 		sComponentName.assign("purepursuit_planner_node");
 		iState = INIT_STATE;
+		direction = 0;
 	}
 
 	/*!	\fn purepursuit_planner::~purepursuit_planner()
@@ -784,6 +798,8 @@ public:
 	 * 	\brief Setups ROS' stuff
 	*/
 	void ROSSetup(){
+		string s_command_type;
+		
 		private_node_handle_.param<std::string>("odom_topic", odom_topic_, "/odom");
 		private_node_handle_.param("cmd_topic_vel", cmd_topic_vel_, std::string("/agvs_controller/command"));
 		private_node_handle_.param("d_lookahear_min", d_lookahear_min_, D_LOOKAHEAD_MIN);
@@ -793,10 +809,21 @@ public:
 		private_node_handle_.param("kr", Kr, AGVS_DEFAULT_KR);
 		private_node_handle_.param<std::string>("position_source", position_source_, "ODOM");
 		private_node_handle_.param("desired_freq", desired_freq_, desired_freq_);
-		//private_node_handle_.param<std::string>("name_sc_enable_frot_laser_", name_sc_enable_front_laser_, "/s3000_laser_front/enable_disable");
-		//private_node_handle_.param<std::string>("name_sc_enable_back_laser", name_sc_enable_back_laser_, "/s3000_laser_back/enable_disable"	);
+		private_node_handle_.param<std::string>("command_type", s_command_type, COMMAND_ACKERMANN_STRING);
 		
-	
+		//private_node_handle_.param<std::string>("name_sc_enable_frot_laser_", name_sc_enable_front_laser_, "/s3000_laser_front/enable_disable");
+		//private_node_handl_.param<std::string>("name_sc_enable_back_laser", name_sc_enable_back_laser_, "/s3000_laser_back/enable_disable"	);
+		
+		if(s_command_type.compare(COMMAND_ACKERMANN_STRING) == 0){
+			command_type = COMMAND_ACKERMANN;
+		}else if(s_command_type.compare(COMMAND_TWIST_STRING) == 0){
+			command_type = COMMAND_TWIST;
+		}else{
+			// default value
+			command_type = COMMAND_TWIST;
+			d_dist_wheel_to_center_ = 1.0;
+		}
+		
 		// From Component class
 		threadData.dDesiredHz = desired_freq_;
 		
@@ -804,10 +831,17 @@ public:
 			ui_position_source = MAP_SOURCE;
 		else 
 			ui_position_source = ODOM_SOURCE;
-			
-		//
-		// Publish through the node handle Twist type messages to the guardian_controller/command topic
-		vel_pub_ = private_node_handle_.advertise<ackermann_msgs::AckermannDriveStamped>(cmd_topic_vel_, 1);
+		
+		if(command_type == COMMAND_ACKERMANN){
+			//
+			// Publish through the node handle Ackerman type messages to the command vel topic
+			vel_pub_ = private_node_handle_.advertise<ackermann_msgs::AckermannDriveStamped>(cmd_topic_vel_, 1);			
+		}else{
+			//
+			// Publish through the node handle Twist type messages to the command vel topic
+			vel_pub_ = private_node_handle_.advertise<geometry_msgs::Twist>(cmd_topic_vel_, 1);	
+		}
+		
 		//
 		if(ui_position_source == MAP_SOURCE)
 			tranform_map_pub_ = private_node_handle_.advertise<geometry_msgs::TransformStamped>("map_location", 100);
@@ -833,8 +867,8 @@ public:
         //sc_enable_front_laser_ = private_node_handle_.serviceClient<s3000_laser::enable_disable>(name_sc_enable_front_laser_);
         //sc_enable_back_laser_ = private_node_handle_.serviceClient<s3000_laser::enable_disable>(name_sc_enable_back_laser_);
         
-		ROS_INFO("%s::ROSSetup(): odom_topic = %s, command_topic_vel = %s, position source = %s, desired_hz=%.1lf, min_lookahead = %.1lf, max_lookahead = %.1lf, kr = %.2lf", sComponentName.c_str(), odom_topic_.c_str(),
-		 cmd_topic_vel_.c_str(), position_source_.c_str(), desired_freq_, d_lookahear_min_, d_lookahear_max_, Kr);
+		ROS_INFO("%s::ROSSetup(): odom_topic = %s, command_topic_vel = %s, position source = %s, desired_hz=%.1lf, min_lookahead = %.1lf, max_lookahead = %.1lf, kr = %.2lf, command_type = %s", sComponentName.c_str(), odom_topic_.c_str(),
+		 cmd_topic_vel_.c_str(), position_source_.c_str(), desired_freq_, d_lookahear_min_, d_lookahear_max_, Kr, s_command_type.c_str());
 		
 		//ROS_INFO("%s::ROSSetup(): laser_topics: front -> %s, back -> %s", sComponentName.c_str(), name_sc_enable_front_laser_.c_str(), name_sc_enable_back_laser_.c_str());
 		
@@ -1294,7 +1328,8 @@ public:
 		if (dAuxSpeed >= 0)
 		   dth = next_position.theta - current_position.theta;
 		else
-		   dth = -(next_position.theta + Pi - current_position.theta);
+		  dth = -(next_position.theta + Pi - current_position.theta);
+
 
 		// normalize
 		radnorm(&dth);
@@ -1329,7 +1364,11 @@ public:
 				dAuxSpeed = AGVS_FIRST_DECELERATION_MAXSPEED;
 		}
 		
-		SetRobotSpeed(dAuxSpeed, wref); 
+		if(command_type == COMMAND_ACKERMANN){
+			SetRobotSpeed(dAuxSpeed, wref); 
+		}else{
+			SetRobotSpeed(dAuxSpeed, wref*direction); 
+		}
 		
 		//
 		// When the robot is on the last waypoint, checks the distance to the end
@@ -1370,16 +1409,23 @@ public:
 	/*!	\fn void SetRobotSpeed()
 	*/
 	void SetRobotSpeed(double speed, double angle){
-		ackermann_msgs::AckermannDriveStamped ref_msg;
-		
-		ref_msg.header.stamp = ros::Time::now();
-		ref_msg.drive.jerk = 0.0; 
-		ref_msg.drive.acceleration = 0.0; 
-		ref_msg.drive.steering_angle_velocity = 0.0;
-		ref_msg.drive.steering_angle = angle;
-		ref_msg.drive.speed = speed;
-		
-		vel_pub_.publish(ref_msg);
+		if(command_type == COMMAND_ACKERMANN){
+			ackermann_msgs::AckermannDriveStamped ref_msg;
+			
+			ref_msg.header.stamp = ros::Time::now();
+			ref_msg.drive.jerk = 0.0; 
+			ref_msg.drive.acceleration = 0.0; 
+			ref_msg.drive.steering_angle_velocity = 0.0;
+			ref_msg.drive.steering_angle = angle;
+			ref_msg.drive.speed = speed;
+			
+			vel_pub_.publish(ref_msg);
+		}else{
+			geometry_msgs::Twist ref_msg;
+			ref_msg.angular.x = 0.0;  ref_msg.angular.y = 0.0; ref_msg.angular.z = angle;
+			ref_msg.linear.x = speed;   ref_msg.linear.y = 0.0; ref_msg.linear.z = 0.0;
+			vel_pub_.publish(ref_msg);
+		}
 	}
 	
 	
@@ -1641,7 +1687,7 @@ public:
 	ReturnValue MergePath(){
 		Waypoint new_waypoint, wFirst, wLast;
 		Path aux;
-		int direction = 0;
+		
 		
 		if(action_server_goto.isNewGoalAvailable()){
 			goto_goal.target = action_server_goto.acceptNewGoal()->target; // Reads points from action server

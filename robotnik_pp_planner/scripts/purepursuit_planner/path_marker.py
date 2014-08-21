@@ -175,7 +175,7 @@ class PointPathManager(InteractiveMarkerServer):
 		# Locates and loads the UI file into the widget
 		rp = rospkg.RosPack()		
 		# loads a ui file for the dialog
-		self.points_file_path = os.path.join(rp.get_path('purepursuit_planner'), 'scripts', 'waypoints.txt')
+		self.points_file_path = os.path.join(rp.get_path('robotnik_pp_planner'), 'config', 'waypoints.txt')
 		
 		#rospy.Timer(rospy.Duration(5), self.createNewPoint)
 		self._go_service = rospy.Service('%s/go'%rospy.get_name(), Empty, self.goService)

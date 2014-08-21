@@ -6,7 +6,7 @@ import time
 # Brings in the SimpleActionClient
 import actionlib
 from geometry_msgs.msg import Pose2D
-from planner_msgs.msg import goal, GoToGoal, GoToAction
+from robotnik_pp_msgs.msg import goal, GoToGoal, GoToAction
 
 
 
