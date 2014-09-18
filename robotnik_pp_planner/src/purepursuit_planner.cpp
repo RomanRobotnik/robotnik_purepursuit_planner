@@ -160,7 +160,33 @@ class Path{
 			}
 		pthread_mutex_unlock(&mutexPath);
 	}
-
+	
+	//! Creates a new point from the desired position to the first waypoint
+	ReturnValue CreateInterpolatedWaypoint(geometry_msgs::Pose2D pose){
+		ReturnValue ret = OK;
+		
+		pthread_mutex_lock(&mutexPath);
+		
+		if(vPoints.size()> 0){
+			vector <Waypoint> vAuxPoints;
+			Waypoint new_point;
+			new_point.dX = (vPoints[0].dX - pose.x) / 2.0;
+			new_point.dY = (vPoints[0].dY - pose.y) / 2.0;
+			new_point.dSpeed = vPoints[0].dSpeed;
+			new_point.dA = vPoints[0].dA;
+			vAuxPoints.push_back(new_point);
+			for(int i = 0; i < vPoints.size(); i++)
+				vAuxPoints.push_back(vPoints[i]);
+			vPoints = vAuxPoints;
+		}else{
+			ret  = ERROR;
+		}
+		
+		pthread_mutex_unlock(&mutexPath);
+				
+		return ret;
+	}
+	
 	//! Adds a new magnet
 	ReturnValue AddMagnet(MagnetStruct magnet){
 		pthread_mutex_lock(&mutexPath);
@@ -1744,6 +1770,14 @@ public:
 					
 					// Adds the first path in the queue to the current path
 					pathCurrent+=qPath.front();
+					
+					// Needs at least two points
+					if(pathCurrent.NumOfWaypoints() < 2){		
+						if(pathCurrent.CreateInterpolatedWaypoint(this->pose2d_robot) == ERROR){
+							ROS_ERROR("%s::MergePath: Error adding an extra point", sComponentName.c_str());
+						}
+						
+					}
 					
 					ROS_INFO("%s::MergePath: New number of points = %d and magnets = %d", sComponentName.c_str(), pathCurrent.NumOfWaypoints() , pathCurrent.NumOfMagnets());
 					// Pops the extracted path
