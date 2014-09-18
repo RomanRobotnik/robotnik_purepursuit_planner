@@ -717,6 +717,8 @@ private:
     bool bCancel;
     //! Mode for reading the position of the robot ("ODOM", "MAP")
     std::string position_source_;
+    //! Target frame for the transform from /map to it
+    std::string target_frame_;
     //! Mode in numeric format
     unsigned int ui_position_source;
     //!	Sets the type of command to send to the robot (Twist or ackermann)
@@ -810,6 +812,7 @@ public:
 		private_node_handle_.param<std::string>("position_source", position_source_, "ODOM");
 		private_node_handle_.param("desired_freq", desired_freq_, desired_freq_);
 		private_node_handle_.param<std::string>("command_type", s_command_type, COMMAND_ACKERMANN_STRING);
+		private_node_handle_.param<std::string>("target_frame", target_frame_, "/base_footprint");
 		
 		//private_node_handle_.param<std::string>("name_sc_enable_frot_laser_", name_sc_enable_front_laser_, "/s3000_laser_front/enable_disable");
 		//private_node_handl_.param<std::string>("name_sc_enable_back_laser", name_sc_enable_back_laser_, "/s3000_laser_back/enable_disable"	);
@@ -1462,7 +1465,7 @@ public:
 		// Only if we use the map as source for positioning
 		if(ui_position_source == MAP_SOURCE){		
 			try{
-				listener.lookupTransform("/map", "/base_link", ros::Time(0), transform);
+				listener.lookupTransform("/map", target_frame_, ros::Time(0), transform);
 				geometry_msgs::TransformStamped msg;
 				tf::transformStampedTFToMsg(transform, msg);
 				pose2d_robot.x = msg.transform.translation.x;
