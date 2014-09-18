@@ -45,7 +45,7 @@ add_executable(robotnik_pp_planner_node src/purepursuit_planner.cpp src/Componen
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-add_dependencies(robotnik_pp_planner_node purepursuit_planner_generate_messages_cpp)
+add_dependencies(robotnik_pp_planner_node robotnik_pp_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(robotnik_pp_planner_node

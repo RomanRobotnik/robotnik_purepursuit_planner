@@ -18,7 +18,7 @@ add_message_files(
 add_action_files(DIRECTORY action FILES GoTo.action)
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(DEPENDENCIES std_msgs actionlib_msgs geometry_msgs planner_msgs)
+generate_messages(DEPENDENCIES std_msgs actionlib_msgs geometry_msgs)
 
 
 catkin_package(
