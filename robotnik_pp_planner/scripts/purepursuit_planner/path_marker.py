@@ -37,7 +37,7 @@ from interactive_markers.menu_handler import *
 
 import actionlib
 from geometry_msgs.msg import Pose2D
-from planner_msgs.msg import goal, GoToGoal, GoToAction
+from robotnik_pp_msgs.msg import goal, GoToGoal, GoToAction
 from std_srvs.srv import Empty
 
 # Client based on ActionServer to send goals to the purepursuit node
